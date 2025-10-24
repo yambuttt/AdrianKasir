@@ -143,3 +143,4 @@ Route::middleware(['auth'])->prefix('user')->name('user.')->group(function () {
         ->name('history.show');
     Route::get('/pos/tax', [TaxInfoController::class, 'show'])->name('pos.tax.show');
 });
+///test
