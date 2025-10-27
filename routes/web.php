@@ -74,6 +74,11 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::put('/admin/tiers/{tier}', [DiscountTierController::class, 'update'])->name('admin.tiers.update');
     Route::delete('/admin/tiers/{tier}', [DiscountTierController::class, 'destroy'])->name('admin.tiers.destroy');
 
+    Route::post('/admin/returns', [\App\Http\Controllers\Admin\ReturnController::class, 'store'])
+        ->name('admin.returns.store');
+    Route::post('/admin/exchanges', [\App\Http\Controllers\Admin\ExchangeController::class, 'store'])
+        ->name('admin.exchanges.store');
+
 
 });
 
