@@ -78,6 +78,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('admin.returns.store');
     Route::post('/admin/exchanges', [\App\Http\Controllers\Admin\ExchangeController::class, 'store'])
         ->name('admin.exchanges.store');
+    Route::post('/admin/refunds/preview', [\App\Http\Controllers\Admin\ReturnController::class, 'preview'])
+        ->name('admin.returns.preview');
+
 
 
 });
