@@ -162,5 +162,9 @@ Route::middleware(['auth'])->prefix('user')->name('user.')->group(function () {
         ->whereNumber('sale')
         ->name('history.show');
     Route::get('/pos/tax', [TaxInfoController::class, 'show'])->name('pos.tax.show');
+    // Laporan user
+    Route::get('/reports', [\App\Http\Controllers\User\ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export/csv', [\App\Http\Controllers\User\ReportController::class, 'exportCsv'])->name('reports.export.csv');
+    Route::get('/reports/export/print', [\App\Http\Controllers\User\ReportController::class, 'printable'])->name('reports.export.print');
 });
 ///test

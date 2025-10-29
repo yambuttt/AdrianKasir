@@ -8,7 +8,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        // Halaman user biasa (nanti diisi)
+        
         return view('user.dashboard');
     }
 }
