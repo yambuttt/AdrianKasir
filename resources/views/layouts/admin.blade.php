@@ -72,7 +72,10 @@
                         class="block rounded-md px-3 py-2 hover:bg-gray-100 {{ request()->routeIs('admin.transactions.*') ? 'bg-gray-100 font-medium' : '' }}">🧾
                         Transaksi
                     </a>
-                    <a href="#" class="block rounded-md px-3 py-2 hover:bg-gray-100">📊 Laporan</a>
+                    <a href="{{ route('admin.reports.index') }}"
+                        class="block rounded-md px-3 py-2 hover:bg-gray-100 {{ request()->routeIs('admin.reports.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700' }}">
+                        📊 Laporan
+                    </a>
                 </div>
             </nav>
         </aside>

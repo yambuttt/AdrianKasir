@@ -81,6 +81,13 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::post('/admin/refunds/preview', [\App\Http\Controllers\Admin\ReturnController::class, 'preview'])
         ->name('admin.returns.preview');
 
+    Route::get('/admin/reports', [\App\Http\Controllers\Admin\ReportController::class, 'index'])
+        ->name('admin.reports.index');
+    Route::get('/admin/reports/export/csv', [\App\Http\Controllers\Admin\ReportController::class, 'exportCsv'])
+        ->name('admin.reports.export.csv');
+    Route::get('/admin/reports/export/print', [\App\Http\Controllers\Admin\ReportController::class, 'printable'])
+        ->name('admin.reports.export.print');
+
 
 
 });
