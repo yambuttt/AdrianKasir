@@ -63,9 +63,14 @@
                         class="block rounded-md px-3 py-2 hover:bg-gray-100 {{ request()->routeIs('admin.tax.*') ? 'bg-gray-100 font-medium' : '' }}">
                         💰 Tax
                     </a>
+                    <a href="{{ route('admin.refunds.index') }}"
+                        class="block rounded-md px-3 py-2 hover:bg-gray-100 {{ request()->routeIs('admin.refunds.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700' }}">
+                        💸 Refund
+                    </a>
 
                     <a href="{{ route('admin.transactions.index') }}"
-                     class="block rounded-md px-3 py-2 hover:bg-gray-100 {{ request()->routeIs('admin.transactions.*') ? 'bg-gray-100 font-medium' : '' }}">🧾 Transaksi
+                        class="block rounded-md px-3 py-2 hover:bg-gray-100 {{ request()->routeIs('admin.transactions.*') ? 'bg-gray-100 font-medium' : '' }}">🧾
+                        Transaksi
                     </a>
                     <a href="#" class="block rounded-md px-3 py-2 hover:bg-gray-100">📊 Laporan</a>
                 </div>

@@ -56,5 +56,10 @@ class Sale extends Model
     {
         return max(0, $this->computed_subtotal - $this->computed_auto_discount - $this->computed_voucher_discount);
     }
+    
+    public function returns()
+    {
+        return $this->hasMany(\App\Models\SaleReturn::class)->latest();
+    }
 
 }

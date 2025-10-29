@@ -48,6 +48,7 @@
     <tfoot>
       <tr><td colspan="3" class="right">Subtotal</td><td class="right">Rp {{ number_format($sale->subtotal,0,',','.') }}</td></tr>
       <tr><td colspan="3" class="right">Diskon Otomatis</td><td class="right">- Rp {{ number_format($sale->auto_discount,0,',','.') }}</td></tr>
+      <tr><td colspan="3" class="right">Pajak {{ $sale->tax_rate }}</td><td class="right">- Rp {{ number_format($sale->tax_amount,0,',','.') }}</td></tr>
       <tr><td colspan="3" class="right">Voucher {{ $sale->voucher_code ? '(' . $sale->voucher_code . ')' : '' }}</td><td class="right">- Rp {{ number_format($sale->voucher_discount,0,',','.') }}</td></tr>
       <tr><td colspan="3" class="right"><b>Total</b></td><td class="right"><b>Rp {{ number_format($sale->total,0,',','.') }}</b></td></tr>
       <tr><td colspan="3" class="right">Tunai</td><td class="right">Rp {{ number_format($sale->cash_paid,0,',','.') }}</td></tr>

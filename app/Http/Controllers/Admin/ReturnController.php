@@ -30,23 +30,24 @@ class ReturnController extends Controller
         return DB::transaction(function () use ($data, $userId, $svc) {
             $sale = Sale::with('items')->lockForUpdate()->findOrFail($data['sale_id']);
 
-            // Siapkan baris retur
+            // Siapkan baris retur + cegah refund ganda
             $rows = [];
             foreach ($data['items'] as $row) {
                 $it = SaleItem::where('sale_id', $sale->id)->findOrFail($row['sale_item_id']);
-                $qty_ref = min((int) $row['qty_refund'], (int) $it->qty); // jangan melebihi qty beli
+                $refunded = SaleReturnItem::where('sale_item_id', $it->id)->sum('qty_refund');
+                $maxLeft = max(0, (int) $it->qty - (int) $refunded);
+                $qty_ref = min((int) $row['qty_refund'], $maxLeft);
                 if ($qty_ref <= 0)
                     continue;
                 $rows[] = ['sale_item' => $it, 'qty_refund' => $qty_ref, 'condition' => $row['condition']];
             }
-            if (empty($rows)) {
+            if (empty($rows))
                 return back()->with('error', 'Tidak ada item yang direfund.');
-            }
 
-            // Hitung nominal refund pro-rata diskon + pajak
+            // Hitung nominal refund pro-rata (sudah ada) :contentReference[oaicite:7]{index=7}
             $calc = $svc->compute($sale, $rows);
 
-            // Buat dokumen return
+            // Buat dokumen return (mode=refund uang)
             $ret = SaleReturn::create([
                 'sale_id' => $sale->id,
                 'processed_by' => $userId,
@@ -61,7 +62,7 @@ class ReturnController extends Controller
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            // Simpan item + update stok / log rusak
+            // Simpan item + update stok / log rusak (sudah ada) :contentReference[oaicite:8]{index=8}
             foreach ($calc['lines'] as $i => $ln) {
                 $cond = $rows[$i]['condition'] ?? 'normal';
                 SaleReturnItem::create(array_merge($ln, [
@@ -69,7 +70,6 @@ class ReturnController extends Controller
                     'condition' => $cond,
                 ]));
 
-                // Update stok_kasir / log rusak
                 $prod = Product::lockForUpdate()->where('kode_barang', $ln['kode_barang'])->first();
                 if ($prod) {
                     if ($cond === 'normal') {
@@ -86,23 +86,13 @@ class ReturnController extends Controller
                 }
             }
 
-            // (Opsional) Kebijakan voucher:
-            // - Partial return: voucher tetap dianggap terpakai.
-            // - Full return: kamu bisa buat tombol “Pulihkan voucher” tersendiri bila ingin.
-
-            return redirect()->route('admin.transactions.show', $sale)->with(
-                'ok',
-                'Refund berhasil. Kembalikan uang Rp ' . number_format($ret->refund_total, 0, ',', '.')
-            );
+            return redirect()->route('admin.transactions.show', $sale)
+                ->with('ok', 'Refund berhasil. Kembalikan uang Rp ' . number_format($ret->refund_total, 0, ',', '.'));
         });
     }
 
-    public function preview(
-        \Illuminate\Http\Request $request,
-        \App\Services\RefundService $svc,
-        \App\Services\DiscountEngine $engine,
-        \App\Services\TaxService $tax
-    ) {
+    public function preview(Request $request, RefundService $svc)
+    {
         $data = $request->validate([
             'sale_id' => ['required', 'integer', 'exists:sales,id'],
             'mode' => ['required', 'in:refund,exchange'],
@@ -110,59 +100,41 @@ class ReturnController extends Controller
             'items.*.sale_item_id' => ['required', 'integer', 'exists:sale_items,id'],
             'items.*.qty_refund' => ['required', 'integer', 'min:0'],
             'items.*.condition' => ['required', 'in:normal,damaged'],
-            'replacement' => ['array'],                 // hanya untuk exchange
-            'replacement.*.kode_barang' => ['required_with:replacement', 'string'],
-            'replacement.*.qty' => ['required_with:replacement', 'integer', 'min:1'],
         ]);
 
-        $sale = \App\Models\Sale::with('items')->findOrFail($data['sale_id']);
+        $sale = Sale::with('items')->findOrFail($data['sale_id']);
 
-        // Siapkan baris yang benar2 direfund
+        // Baris + anti refund ganda
         $rows = [];
         foreach ($data['items'] as $row) {
-            $it = \App\Models\SaleItem::where('sale_id', $sale->id)->findOrFail($row['sale_item_id']);
-            $qty = min((int) $row['qty_refund'], (int) $it->qty);
+            $it = SaleItem::where('sale_id', $sale->id)->findOrFail($row['sale_item_id']);
+            $refunded = SaleReturnItem::where('sale_item_id', $it->id)->sum('qty_refund');
+            $maxLeft = max(0, (int) $it->qty - (int) $refunded);
+            $qty = min((int) $row['qty_refund'], $maxLeft);
             if ($qty <= 0)
                 continue;
             $rows[] = ['sale_item' => $it, 'qty_refund' => $qty, 'condition' => $row['condition']];
         }
 
-        $calc = $svc->compute($sale, $rows); // ->summary & ->lines
+        $calc = $svc->compute($sale, $rows); // :contentReference[oaicite:9]{index=9}
 
         $resp = [
             'refund' => $calc['summary'],
             'lines' => $calc['lines'],
         ];
 
-        // Jika mode exchange, hitung penjualan pengganti (tanpa voucher)
-        if ($data['mode'] === 'exchange' && !empty($data['replacement'])) {
-            $kodeList = collect($data['replacement'])->pluck('kode_barang')->all();
-            $products = \App\Models\Product::whereIn('kode_barang', $kodeList)->get()->keyBy('kode_barang');
-
-            $subtotal = 0;
-            foreach ($data['replacement'] as $r) {
-                $p = $products->get($r['kode_barang']);
-                if (!$p || is_null($p->harga_jual))
-                    continue;
-                $subtotal += (int) $p->harga_jual * (int) $r['qty'];
-            }
-            $auto = $engine->computeAutoDiscount($subtotal);          // diskon otomatis
-            $dpp = max(0, $subtotal - (int) $auto['amount']);
-            $tx = $tax->compute($dpp);                               // floor, rate konsisten
-            $grand = $dpp + (int) $tx['tax'];
-
-            $resp['exchange'] = [
-                'subtotal' => $subtotal,
-                'auto_discount' => (int) $auto['amount'],
-                'dpp' => $dpp,
-                'tax_rate' => (float) $tx['rate'],
-                'tax' => (int) $tx['tax'],
-                'total' => $grand,
-            ];
-            $resp['difference'] = $grand - (int) $calc['summary']['refund_total'];
+        // Mode exchange (zero-diff): tidak hitung penjualan baru, difference=0
+        if ($data['mode'] === 'exchange') {
+            $resp['replacement_lines'] = array_map(fn($ln) => [
+                'kode_barang' => $ln['kode_barang'],
+                'qty' => $ln['qty_refund'],
+            ], $calc['lines']);
+            $resp['difference'] = 0;
         }
 
         return response()->json(['status' => 'success', 'data' => $resp]);
     }
+
+    
 
 }

@@ -12,7 +12,12 @@
         <a href="{{ route('admin.transactions.index') }}" class="px-4 py-2 border rounded">Kembali</a>
         <a href="{{ url('/user/sales/' . $sale->id . '/receipt') }}" class="px-4 py-2 bg-indigo-600 text-white rounded"
           target="_blank">Lihat Struk</a>
-        <button type="button" id="btnOpenRefund" class="px-4 py-2 bg-red-600 text-white rounded">
+        @php $hasRefund = $sale->returns && $sale->returns->count() > 0; @endphp
+
+        {{-- Disable tombol refund jika sudah pernah refund --}}
+        <button type="button" id="btnOpenRefund"
+          class="px-4 py-2 rounded {{ $hasRefund ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-red-600 text-white' }}"
+          {{ $hasRefund ? 'disabled' : '' }}>
           Refund / Tukar Barang
         </button>
       </div>
@@ -70,6 +75,7 @@
             </tr>
           @endforeach
         </tbody>
+
         <tfoot class="bg-gray-50">
           <tr>
             <td colspan="3" class="px-4 py-2 text-right font-medium">Subtotal</td>
@@ -98,6 +104,79 @@
       </table>
     </div>
   </div>
+  @if($sale->returns && $sale->returns->count())
+    <div class="mt-6 bg-white rounded shadow">
+      <div class="px-4 py-3 border-b">
+        <h3 class="font-semibold">Riwayat Refund / Tukar</h3>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2 text-left">Waktu</th>
+              <th class="px-4 py-2 text-left">Mode</th>
+              <th class="px-4 py-2 text-right">Subtotal Retur</th>
+              <th class="px-4 py-2 text-right">Diskon (Auto/Voucher)</th>
+              <th class="px-4 py-2 text-right">DPP</th>
+              <th class="px-4 py-2 text-right">Pajak</th>
+              <th class="px-4 py-2 text-right">Uang Kembali / Selisih</th>
+              <th class="px-4 py-2 text-left">Detail Item</th>
+              <th class="px-4 py-2 text-left">Bukti</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach($sale->returns as $r)
+              <tr class="border-t align-top">
+                <td class="px-4 py-2">{{ $r->created_at->format('d M Y H:i') }}</td>
+                <td class="px-4 py-2">
+                  @if($r->mode === 'exchange')
+                    Tukar (barang sama)
+                  @else
+                    Refund Uang
+                  @endif
+                </td>
+                <td class="px-4 py-2 text-right">Rp {{ number_format($r->subtotal_refund, 0, ',', '.') }}</td>
+                <td class="px-4 py-2 text-right">
+                  <div>- Auto: Rp {{ number_format($r->auto_share, 0, ',', '.') }}</div>
+                  <div>- Voucher: Rp {{ number_format($r->voucher_share, 0, ',', '.') }}</div>
+                </td>
+                <td class="px-4 py-2 text-right">Rp {{ number_format($r->dpp_refund, 0, ',', '.') }}</td>
+                <td class="px-4 py-2 text-right">Rp {{ number_format($r->tax_refund, 0, ',', '.') }}</td>
+                <td class="px-4 py-2 text-right">
+                  @if($r->mode === 'exchange')
+                    <span class="text-gray-600">Rp 0 (tanpa selisih)</span>
+                  @else
+                    <span class="font-semibold">Rp {{ number_format($r->refund_total, 0, ',', '.') }}</span>
+                  @endif
+                </td>
+                <td class="px-4 py-2">
+                  <ul class="list-disc pl-5">
+                    @foreach($r->items as $it)
+                      <li>
+                        {{ $it->nama_barang }} — Kode {{ $it->kode_barang }},
+                        Qty {{ $it->qty_refund }},
+                        @if($r->mode === 'exchange')
+                          <em>diganti barang baru yang sama</em>
+                        @else
+                          <em>{{ $it->condition === 'damaged' ? 'rusak' : 'normal' }}</em>
+                        @endif
+                      </li>
+                    @endforeach
+                  </ul>
+                  @if($r->notes)
+                    <div class="text-xs text-gray-500 mt-1">Catatan: {{ $r->notes }}</div>
+                  @endif
+                </td>
+                <td class="px-4 py-2">
+                  <a href="{{ route('admin.refunds.receipt', $r) }}" target="_blank" class="underline">Refund Receipt</a>
+                </td>
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+    </div>
+  @endif
 
   {{-- Modal Refund / Exchange --}}
   <div id="refundModal" class="fixed inset-0 z-50 hidden">
@@ -146,6 +225,7 @@
                 <th class="px-3 py-2 text-left">Kondisi</th>
                 <th class="px-3 py-2 text-right">Harga</th>
                 <th class="px-3 py-2 text-right">Subtotal</th>
+                
               </tr>
             </thead>
             <tbody>
@@ -169,6 +249,7 @@
                   </td>
                   <td class="px-3 py-2 text-right">Rp {{ number_format($it->harga_jual, 0, ',', '.') }}</td>
                   <td class="px-3 py-2 text-right">Rp {{ number_format($it->line_total, 0, ',', '.') }}</td>
+                  
                 </tr>
               @endforeach
             </tbody>
@@ -292,59 +373,54 @@
           const d = json.data;
 
           const summaryHtml = `
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            <div><div class="text-gray-500">Subtotal Retur</div><div class="font-semibold">${rupiah(d.refund.subtotal_refund)}</div></div>
-            <div><div class="text-gray-500">Diskon Otomatis (bagian)</div><div class="font-semibold text-red-600">- ${rupiah(d.refund.auto_share)}</div></div>
-            <div><div class="text-gray-500">Diskon Voucher (bagian)</div><div class="font-semibold text-red-600">- ${rupiah(d.refund.voucher_share)}</div></div>
-            <div><div class="text-gray-500">Pajak (${(d.refund.tax_rate || 0).toString().replace('.', ',')}%)</div><div class="font-semibold">${rupiah(d.refund.tax_refund)}</div></div>
-            <div class="md:col-span-4"><div class="text-gray-500">Estimasi Kembalian</div><div class="text-lg font-bold">${rupiah(d.refund.refund_total)}</div></div>
-          </div>
-        `;
+                      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div><div class="text-gray-500">Subtotal Retur</div><div class="font-semibold">${rupiah(d.refund.subtotal_refund)}</div></div>
+                        <div><div class="text-gray-500">Diskon Otomatis (bagian)</div><div class="font-semibold text-red-600">- ${rupiah(d.refund.auto_share)}</div></div>
+                        <div><div class="text-gray-500">Diskon Voucher (bagian)</div><div class="font-semibold text-red-600">- ${rupiah(d.refund.voucher_share)}</div></div>
+                        <div><div class="text-gray-500">Pajak (${(d.refund.tax_rate || 0).toString().replace('.', ',')}%)</div><div class="font-semibold">${rupiah(d.refund.tax_refund)}</div></div>
+                        <div class="md:col-span-4"><div class="text-gray-500">Estimasi Kembalian</div><div class="text-lg font-bold">${rupiah(d.refund.refund_total)}</div></div>
+                      </div>
+                    `;
           document.getElementById('previewSummary').innerHTML = summaryHtml;
 
           let rows = '';
           (d.lines || []).forEach((ln) => {
             rows += `
-            <tr class="border-t">
-              <td class="px-2 py-1">${ln.nama_barang}<div class="text-xs text-gray-500">Kode: ${ln.kode_barang}</div></td>
-              <td class="px-2 py-1 text-right">${ln.qty_refund}</td>
-              <td class="px-2 py-1 text-right">${rupiah(ln.harga_jual)}</td>
-              <td class="px-2 py-1 text-right">${rupiah(ln.line_subtotal)}</td>
-              <td class="px-2 py-1 text-right text-red-600">- ${rupiah(ln.auto_share)}</td>
-              <td class="px-2 py-1 text-right text-red-600">- ${rupiah(ln.voucher_share)}</td>
-              <td class="px-2 py-1 text-right">${rupiah(ln.dpp_refund)}</td>
-              <td class="px-2 py-1 text-right">${rupiah(ln.tax_refund)}</td>
-              <td class="px-2 py-1 text-right font-semibold">${rupiah(ln.refund_amount)}</td>
-            </tr>`;
+                        <tr class="border-t">
+                          <td class="px-2 py-1">${ln.nama_barang}<div class="text-xs text-gray-500">Kode: ${ln.kode_barang}</div></td>
+                          <td class="px-2 py-1 text-right">${ln.qty_refund}</td>
+                          <td class="px-2 py-1 text-right">${rupiah(ln.harga_jual)}</td>
+                          <td class="px-2 py-1 text-right">${rupiah(ln.line_subtotal)}</td>
+                          <td class="px-2 py-1 text-right text-red-600">- ${rupiah(ln.auto_share)}</td>
+                          <td class="px-2 py-1 text-right text-red-600">- ${rupiah(ln.voucher_share)}</td>
+                          <td class="px-2 py-1 text-right">${rupiah(ln.dpp_refund)}</td>
+                          <td class="px-2 py-1 text-right">${rupiah(ln.tax_refund)}</td>
+                          <td class="px-2 py-1 text-right font-semibold">${rupiah(ln.refund_amount)}</td>
+                        </tr>`;
           });
           document.getElementById('previewDetails').innerHTML = rows
             ? `<div class="mt-3 overflow-x-auto"><table class="min-w-full text-xs">
-               <thead class="bg-gray-100"><tr>
-                 <th class="px-2 py-1 text-left">Produk</th>
-                 <th class="px-2 py-1 text-right">Qty</th>
-                 <th class="px-2 py-1 text-right">Harga</th>
-                 <th class="px-2 py-1 text-right">Subtotal</th>
-                 <th class="px-2 py-1 text-right">Auto</th>
-                 <th class="px-2 py-1 text-right">Voucher</th>
-                 <th class="px-2 py-1 text-right">DPP</th>
-                 <th class="px-2 py-1 text-right">Pajak</th>
-                 <th class="px-2 py-1 text-right">Kembali</th>
-               </tr></thead><tbody>${rows}</tbody></table></div>`
+                           <thead class="bg-gray-100"><tr>
+                             <th class="px-2 py-1 text-left">Produk</th>
+                             <th class="px-2 py-1 text-right">Qty</th>
+                             <th class="px-2 py-1 text-right">Harga</th>
+                             <th class="px-2 py-1 text-right">Subtotal</th>
+                             <th class="px-2 py-1 text-right">Auto</th>
+                             <th class="px-2 py-1 text-right">Voucher</th>
+                             <th class="px-2 py-1 text-right">DPP</th>
+                             <th class="px-2 py-1 text-right">Pajak</th>
+                             <th class="px-2 py-1 text-right">Kembali</th>
+                           </tr></thead><tbody>${rows}</tbody></table></div>`
             : '';
 
           // mode exchange → info selisih
           const mode = document.querySelector('input[name="mode"]:checked').value;
-          if (mode === 'exchange' && d.exchange) {
-            const diff = d.difference || 0;
-            const note = diff === 0 ? 'Tanpa selisih.'
-              : diff > 0 ? `Pelanggan bayar selisih ${rupiah(diff)}.`
-                : `Kembalikan selisih ${rupiah(Math.abs(diff))}.`;
+          if (mode === 'exchange') {
             document.getElementById('previewDetails').insertAdjacentHTML('beforeend',
-              `<div class="mt-3 p-2 border rounded bg-white">
-               <div class="text-sm font-medium">Penjualan Pengganti</div>
-               <div class="text-xs text-gray-600">Subtotal ${rupiah(d.exchange.subtotal)} • Diskon Otomatis -${rupiah(d.exchange.auto_discount)} • Pajak ${rupiah(d.exchange.tax)} • Total ${rupiah(d.exchange.total)}</div>
-               <div class="mt-1 text-sm">${note}</div>
-             </div>`);
+              `<div class="mt-3 p-2 border rounded bg-white text-sm">
+                Tukar barang sama → <b>Tanpa selisih (Rp 0)</b>. Barang rusak akan dicatat sebagai kerusakan,
+                stok akan dikeluarkan kembali untuk barang pengganti dengan kode & qty yang sama.
+               </div>`);
           }
         } catch (e) {
           console.error(e);
@@ -375,9 +451,9 @@
         const row = document.createElement('div');
         row.className = "grid grid-cols-1 md:grid-cols-3 gap-3";
         row.innerHTML = `
-        <div><input type="text" name="replacement[${idx}][kode_barang]" class="w-full border rounded px-3 py-2" placeholder="Kode Barang"></div>
-        <div><input type="number" name="replacement[${idx}][qty]" class="w-full border rounded px-3 py-2" min="1" value="1"></div>
-        <div class="flex items-end"><button type="button" class="px-3 py-2 border rounded w-full btnRemove">Hapus</button></div>`;
+                    <div><input type="text" name="replacement[${idx}][kode_barang]" class="w-full border rounded px-3 py-2" placeholder="Kode Barang"></div>
+                    <div><input type="number" name="replacement[${idx}][qty]" class="w-full border rounded px-3 py-2" min="1" value="1"></div>
+                    <div class="flex items-end"><button type="button" class="px-3 py-2 border rounded w-full btnRemove">Hapus</button></div>`;
         replacementList.appendChild(row);
         row.querySelector('.btnRemove').addEventListener('click', () => row.remove());
         idx++;

@@ -50,12 +50,11 @@ class TransactionController extends Controller
         ]);
     }
 
-    public function show(Sale $sale)
+    public function show(\App\Models\Sale $sale)
     {
-        // cukup user + items; tidak ada relasi lain yang wajib
-        $sale->load(['user', 'items']);
+        $sale->load(['user', 'items', 'returns.items']);
 
-        // angka ambil dari tabel sales
+        // angka dari tabel sales
         $sale->calc_subtotal = (int) $sale->subtotal;
         $sale->calc_auto_discount = (int) $sale->auto_discount;
         $sale->calc_voucher_discount = (int) $sale->voucher_discount;

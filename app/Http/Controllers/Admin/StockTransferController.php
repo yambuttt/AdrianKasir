@@ -72,7 +72,43 @@ class StockTransferController extends Controller
 
     public function index()
     {
-        $produk = Product::orderBy('nama_barang')->get();
+        // Ambil semua produk kasir
+        $produk = \App\Models\Product::orderBy('nama_barang')->get();
+
+        // Hitung total kerusakan per kode_barang
+        $damageTotals = \App\Models\ProductDamageLog::query()
+            ->selectRaw('kode_barang, SUM(qty) AS damaged_total')
+            ->groupBy('kode_barang')
+            ->pluck('damaged_total', 'kode_barang');
+
+        // Ambil transaksi terkait kerusakan per produk (10 terakhir untuk semua produk)
+        // Join ke sale_returns (punya mode refund/exchange) dan sales (punya code & waktu)
+        $rows = \DB::table('product_damage_logs AS d')
+            ->leftJoin('sale_returns AS r', 'r.id', '=', 'd.sale_return_id')
+            ->leftJoin('sales AS s', 's.id', '=', 'r.sale_id')
+            ->selectRaw('d.kode_barang, d.qty, d.notes, r.mode, s.code AS sale_code, r.created_at AS at')
+            ->orderByDesc('d.id')
+            ->limit(200)
+            ->get()
+            ->groupBy('kode_barang');
+
+        // Tempelkan data ke koleksi produk agar mudah dirender di blade
+        $produk->transform(function ($p) use ($damageTotals, $rows) {
+            $p->damaged_total = (int) ($damageTotals[$p->kode_barang] ?? 0);
+            $list = collect($rows[$p->kode_barang] ?? [])->map(function ($r) {
+                return [
+                    'sale_code' => $r->sale_code ?? '-',
+                    'mode' => $r->mode ?? '-',
+                    'qty' => (int) $r->qty,
+                    'notes' => $r->notes,
+                    'at' => $r->at ? \Carbon\Carbon::parse($r->at)->format('d M Y H:i') : null,
+                ];
+            });
+            // batasi ditampilkan 5 item per produk (biar ringkas)
+            $p->damage_logs = $list->take(5)->values();
+            return $p;
+        });
+
         return view('admin.stock.index', compact('produk'));
     }
 

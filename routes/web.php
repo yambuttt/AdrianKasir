@@ -91,6 +91,14 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/transactions/{sale}', [\App\Http\Controllers\Admin\TransactionController::class, 'show'])->name('transactions.show');
     Route::get('/tax', [TaxController::class, 'edit'])->name('tax.edit');
     Route::post('/tax', [TaxController::class, 'update'])->name('tax.update');
+    Route::get('/refunds', [\App\Http\Controllers\Admin\RefundController::class, 'index'])->name('refunds.index');
+    Route::get('/refunds/{refund}', [\App\Http\Controllers\Admin\RefundController::class, 'show'])->name('refunds.show');
+    Route::get('/refunds', [\App\Http\Controllers\Admin\RefundController::class, 'index'])->name('refunds.index');
+    Route::get('/refunds/{refund}', [\App\Http\Controllers\Admin\RefundController::class, 'show'])->name('refunds.show');
+
+    // Refund Receipt (printable)
+    Route::get('/refunds/{refund}/receipt', [\App\Http\Controllers\Admin\RefundController::class, 'receipt'])
+        ->name('refunds.receipt');
 });
 
 

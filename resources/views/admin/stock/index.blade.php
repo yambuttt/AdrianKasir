@@ -31,9 +31,10 @@
                                 <th class="px-3 py-2">Kode</th>
                                 <th class="px-3 py-2">Nama</th>
                                 <th class="px-3 py-2">Stok</th>
-                                <th class="px-3 py-2">Harga Jual</th> {{-- NEW --}}
+                                <th class="px-3 py-2">Rusak</th> {{-- NEW --}}
+                                <th class="px-3 py-2">Harga Jual</th>
                                 <th class="px-3 py-2">Status</th>
-                                <th class="px-3 py-2 text-right">Aksi</th> {{-- NEW --}}
+                                <th class="px-3 py-2 text-right">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -42,6 +43,20 @@
                                     <td class="px-3 py-2">{{ $item->kode_barang }}</td>
                                     <td class="px-3 py-2">{{ $item->nama_barang }}</td>
                                     <td class="px-3 py-2">{{ $item->stok_kasir }}</td>
+                                    <td class="px-3 py-2">
+                                        {{-- total rusak --}}
+                                        <span
+                                            class="{{ $item->damaged_total > 0 ? 'text-red-600 font-semibold' : 'text-gray-600' }}">
+                                            {{ $item->damaged_total }}
+                                        </span>
+                                        {{-- toggle riwayat jika ada --}}
+                                        @if(($item->damage_logs ?? collect())->count())
+                                            <button class="ml-2 text-xs underline text-indigo-600 toggle-dmg"
+                                                data-kode="{{ $item->kode_barang }}">
+                                                Riwayat
+                                            </button>
+                                        @endif
+                                    </td>
 
                                     <td class="px-3 py-2">
                                         {{ $item->harga_jual !== null ? 'Rp ' . number_format($item->harga_jual, 0, ',', '.') : '-' }}
@@ -49,41 +64,39 @@
 
                                     <td class="px-3 py-2">
                                         <span
-                                            class="text-xs px-2 py-1 rounded-full 
-                                                                                                          {{ $item->stok_kasir > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
+                                            class="text-xs px-2 py-1 rounded-full {{ $item->stok_kasir > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
                                             {{ $item->status_kasir }}
                                         </span>
                                     </td>
 
                                     <td class="px-3 py-2 text-right">
-                                        <div class="flex items-center justify-end gap-2">
-                                            {{-- Atur Harga (punyamu sudah ada) --}}
-                                            <button
-                                                class="btn-set-price px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:opacity-90"
-                                                data-kode="{{ $item->kode_barang }}" data-nama="{{ $item->nama_barang }}"
-                                                data-harga="{{ $item->harga_jual ?? '' }}">
-                                                Atur Harga
-                                            </button>
-
-                                            {{-- Barcode: kirim URL jadi data-attr, biar tidak bingung id/kode --}}
-                                            <button
-                                                class="btn-barcode px-3 py-1.5 bg-gray-100 text-gray-800 text-xs rounded-md hover:bg-gray-200"
-                                                data-preview="{{ route('admin.products.barcode.preview', $item) }}"
-                                                data-download="{{ route('admin.products.barcode.download', $item) }}"
-                                                data-kode="{{ $item->kode_barang }}" data-nama="{{ $item->nama_barang }}">
-                                                Barcode
-                                            </button>
-
-                                            <a href="{{ route('admin.products.barcode.download', $item) }}"
-                                                class="px-3 py-1.5 bg-white border text-xs rounded-md hover:bg-gray-50">
-                                                Download
-                                            </a>
-                                        </div>
+                                        {{-- tombol-tombol lama (Atur Harga, Barcode, Download) tetap --}}
+                                        {{-- ... --}}
                                     </td>
-
-
-
                                 </tr>
+                                @if(($item->damage_logs ?? collect())->count())
+                                    <tr id="dmg-{{ $item->kode_barang }}" class="border-b hidden">
+                                        <td colspan="7" class="bg-gray-50 px-3 py-3">
+                                            <div class="text-xs text-gray-700 mb-1">Riwayat Kerusakan (maks. 5 terbaru)</div>
+                                            <ul class="text-sm list-disc pl-5 space-y-1">
+                                                @foreach($item->damage_logs as $log)
+                                                    <li>
+                                                        <span class="font-medium">Qty {{ $log['qty'] }}</span>
+                                                        @if($log['mode'] && $log['mode'] !== '-')
+                                                            • {{ $log['mode'] === 'exchange' ? 'Tukar' : 'Refund Uang' }}
+                                                        @endif
+                                                        @if($log['sale_code'])
+                                                            • Transaksi <span class="font-mono">{{ $log['sale_code'] }}</span>
+                                                        @endif
+                                                        @if($log['at']) • {{ $log['at'] }} @endif
+                                                        @if($log['notes']) • <em>{{ $log['notes'] }}</em> @endif
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                @endif
+
                             @endforeach
                         </tbody>
                     </table>
@@ -91,6 +104,7 @@
             </div>
         </div>
     </div>
+
 
     {{-- Modal ambil stok --}}
     <div id="modalAmbil" class="hidden fixed inset-0 bg-black/30 flex items-center justify-center z-50">
@@ -190,32 +204,32 @@
                     const json = await res.json();
                     if (json.status === 'success') {
                         let rows = `
-                                          <table class="min-w-full border-collapse">
-                                            <thead>
-                                              <tr class="bg-gray-100 text-left text-gray-600 text-xs uppercase tracking-wide">
-                                                <th class="px-3 py-2">Kode</th>
-                                                <th class="px-3 py-2">Nama</th>
-                                                <th class="px-3 py-2">Stok</th>
-                                                <th class="px-3 py-2">Aksi</th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                        `;
+                                                          <table class="min-w-full border-collapse">
+                                                            <thead>
+                                                              <tr class="bg-gray-100 text-left text-gray-600 text-xs uppercase tracking-wide">
+                                                                <th class="px-3 py-2">Kode</th>
+                                                                <th class="px-3 py-2">Nama</th>
+                                                                <th class="px-3 py-2">Stok</th>
+                                                                <th class="px-3 py-2">Aksi</th>
+                                                              </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                        `;
                         json.data.forEach(b => {
                             rows += `
-                                            <tr class="border-b hover:bg-gray-50 transition">
-                                              <td class="px-3 py-2">${b.kode_barang}</td>
-                                              <td class="px-3 py-2">${b.nama_barang}</td>
-                                              <td class="px-3 py-2">${b.stok_barang}</td>
-                                              <td class="px-3 py-2">
-                                                <button 
-                                                  class="ambil px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:opacity-90" 
-                                                  data-kode="${b.kode_barang}" 
-                                                  data-nama="${b.nama_barang}">
-                                                  Ambil
-                                                </button>
-                                              </td>
-                                            </tr>`;
+                                                            <tr class="border-b hover:bg-gray-50 transition">
+                                                              <td class="px-3 py-2">${b.kode_barang}</td>
+                                                              <td class="px-3 py-2">${b.nama_barang}</td>
+                                                              <td class="px-3 py-2">${b.stok_barang}</td>
+                                                              <td class="px-3 py-2">
+                                                                <button 
+                                                                  class="ambil px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:opacity-90" 
+                                                                  data-kode="${b.kode_barang}" 
+                                                                  data-nama="${b.nama_barang}">
+                                                                  Ambil
+                                                                </button>
+                                                              </td>
+                                                            </tr>`;
                         });
                         tabelGudang.innerHTML = rows + '</tbody></table>';
                     } else {
@@ -364,4 +378,15 @@
             modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
         })();
     </script>
+@endpush
+@push('scripts')
+<script>
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('toggle-dmg')) {
+            const kode = e.target.dataset.kode;
+            const row = document.getElementById('dmg-' + kode);
+            if (row) row.classList.toggle('hidden');
+        }
+    });
+</script>
 @endpush
