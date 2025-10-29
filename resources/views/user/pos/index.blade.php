@@ -159,10 +159,6 @@
                 <div class="mt-2 grid grid-cols-3 gap-2">
                     <button type="button" class="methodBtn rounded-lg border py-2 hover:bg-gray-50"
                         data-method="cash">Tunai</button>
-                    <button type="button" class="methodBtn rounded-lg border py-2 hover:bg-gray-50"
-                        data-method="noncash">Non-Tunai</button>
-                    <button type="button" class="methodBtn rounded-lg border py-2 hover:bg-gray-50"
-                        data-method="mixed">Campuran</button>
                 </div>
             </div>
 

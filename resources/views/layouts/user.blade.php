@@ -34,12 +34,6 @@
         <a href="{{ route('user.history.index') }}"
            class="tab {{ request()->routeIs('user.history.*') ? 'tab-active' : '' }}">📜 Riwayat</a>
 
-        <a href="{{ route('user.stock.index') }}"
-           class="tab {{ request()->routeIs('user.stock.*') ? 'tab-active' : '' }}">📦 Stok</a>
-
-        <a href="{{ route('user.customers.index') }}"
-           class="tab {{ request()->routeIs('user.customers.*') ? 'tab-active' : '' }}">👥 Pelanggan</a>
-
         <a href="{{ route('user.reports.index') }}"
            class="tab {{ request()->routeIs('user.reports.*') ? 'tab-active' : '' }}">📊 Laporan</a>
       </div>

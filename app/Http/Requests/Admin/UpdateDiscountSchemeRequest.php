@@ -7,7 +7,10 @@ use Illuminate\Foundation\Http\FormRequest;
 class UpdateDiscountSchemeRequest extends StoreDiscountSchemeRequest
 {
 
-    public function authorize(): bool { return $this->user()?->role === 'admin'; }
+    public function authorize(): bool
+    {
+        return $this->user()?->role === 'admin';
+    }
     public function rules(): array
     {
         return [

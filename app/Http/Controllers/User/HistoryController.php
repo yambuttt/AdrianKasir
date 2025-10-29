@@ -35,10 +35,11 @@ class HistoryController extends Controller
 
         // properti kalkulasi (langsung dari kolom sales)
         foreach ($sales as $sale) {
-            $sale->calc_subtotal         = (int) $sale->subtotal;
-            $sale->calc_auto_discount    = (int) $sale->auto_discount;
+            $sale->calc_subtotal = (int) $sale->subtotal;
+            $sale->calc_auto_discount = (int) $sale->auto_discount;
             $sale->calc_voucher_discount = (int) $sale->voucher_discount;
-            $sale->calc_grand_total      = (int) $sale->total;
+            $sale->calc_grand_total = (int) $sale->total;
+            $sale->net_total = (int) $sale->total - (int) ($refundBySale[$sale->id] ?? 0);
         }
 
         return view('user/history/index', compact('sales', 'summary'));

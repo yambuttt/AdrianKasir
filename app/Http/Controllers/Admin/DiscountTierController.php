@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreDiscountTierRequest;
+use App\Http\Requests\Admin\UpdateDiscountSchemeRequest;
 use App\Http\Requests\Admin\UpdateDiscountTierRequest;
 use App\Models\DiscountScheme;
 use App\Models\DiscountTier;
+
 
 class DiscountTierController extends Controller
 {
@@ -19,7 +21,7 @@ class DiscountTierController extends Controller
         return back()->with('ok','Tier ditambahkan.');
     }
 
-    public function update(UpdateDiscountTierRequest $request, DiscountTier $tier)
+    public function update(UpdateDiscountSchemeRequest $request, DiscountTier $tier)
     {
         $tier->update($request->validated());
         return back()->with('ok','Tier diperbarui.');

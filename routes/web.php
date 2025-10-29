@@ -20,11 +20,8 @@ use App\Http\Controllers\User\CheckoutController;
 use App\Http\Controllers\Admin\TaxController;
 use App\Http\Controllers\User\TaxInfoController;
 
-Route::get('/', function () {
-    return view('welcome');
-});
 
-Route::get('/login', [LoginController::class, 'show'])->name('login')->middleware('guest');
+Route::get('/', [LoginController::class, 'show'])->name('login')->middleware('guest');
 Route::post('/login', [LoginController::class, 'authenticate'])->name('login.attempt')->middleware('guest');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
 

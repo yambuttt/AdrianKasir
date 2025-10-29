@@ -63,7 +63,7 @@
         </div>
       </div>
       <div class="mt-3 flex items-center justify-between">
-        <button class="px-3 py-1.5 rounded border bg-white">Simpan</button>
+        
     </form>
         <form method="post" action="{{ route('admin.tiers.destroy',$t) }}" onsubmit="return confirm('Hapus tier?')">
           @csrf @method('DELETE')
