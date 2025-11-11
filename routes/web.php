@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\DiscountTierController;
 use App\Http\Controllers\User\CheckoutController;
 use App\Http\Controllers\Admin\TaxController;
 use App\Http\Controllers\User\TaxInfoController;
+use App\Http\Controllers\Api\SalesExportController;
 
 
 Route::get('/', [LoginController::class, 'show'])->name('login')->middleware('guest');
@@ -168,3 +169,7 @@ Route::middleware(['auth'])->prefix('user')->name('user.')->group(function () {
     Route::get('/reports/export/print', [\App\Http\Controllers\User\ReportController::class, 'printable'])->name('reports.export.print');
 });
 ///test
+ Route::get('/sales', [SalesExportController::class, 'index']);
+    // Detail satu penjualan -> single object (sesuai contoh body)
+    Route::get('/sales/{sale}', [SalesExportController::class, 'show'])
+        ->whereNumber('sale');

@@ -70,8 +70,26 @@
                                     </td>
 
                                     <td class="px-3 py-2 text-right">
-                                        {{-- tombol-tombol lama (Atur Harga, Barcode, Download) tetap --}}
-                                        {{-- ... --}}
+                                        <button
+                                            class="btn-set-price px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:opacity-90"
+                                            data-kode="{{ $item->kode_barang }}" data-nama="{{ $item->nama_barang }}"
+                                            data-harga="{{ $item->harga_jual ?? '' }}">
+                                            Atur Harga
+                                        </button>
+
+                                        {{-- Barcode: kirim URL jadi data-attr, biar tidak bingung id/kode --}}
+                                        <button
+                                            class="btn-barcode px-3 py-1.5 bg-gray-100 text-gray-800 text-xs rounded-md hover:bg-gray-200"
+                                            data-preview="{{ route('admin.products.barcode.preview', $item) }}"
+                                            data-download="{{ route('admin.products.barcode.download', $item) }}"
+                                            data-kode="{{ $item->kode_barang }}" data-nama="{{ $item->nama_barang }}">
+                                            Barcode
+                                        </button>
+
+                                        <a href="{{ route('admin.products.barcode.download', $item) }}"
+                                            class="px-3 py-1.5 bg-white border text-xs rounded-md hover:bg-gray-50">
+                                            Download
+                                        </a>
                                     </td>
                                 </tr>
                                 @if(($item->damage_logs ?? collect())->count())
@@ -204,32 +222,32 @@
                     const json = await res.json();
                     if (json.status === 'success') {
                         let rows = `
-                                                          <table class="min-w-full border-collapse">
-                                                            <thead>
-                                                              <tr class="bg-gray-100 text-left text-gray-600 text-xs uppercase tracking-wide">
-                                                                <th class="px-3 py-2">Kode</th>
-                                                                <th class="px-3 py-2">Nama</th>
-                                                                <th class="px-3 py-2">Stok</th>
-                                                                <th class="px-3 py-2">Aksi</th>
-                                                              </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                        `;
+                                                              <table class="min-w-full border-collapse">
+                                                                <thead>
+                                                                  <tr class="bg-gray-100 text-left text-gray-600 text-xs uppercase tracking-wide">
+                                                                    <th class="px-3 py-2">Kode</th>
+                                                                    <th class="px-3 py-2">Nama</th>
+                                                                    <th class="px-3 py-2">Stok</th>
+                                                                    <th class="px-3 py-2">Aksi</th>
+                                                                  </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                            `;
                         json.data.forEach(b => {
                             rows += `
-                                                            <tr class="border-b hover:bg-gray-50 transition">
-                                                              <td class="px-3 py-2">${b.kode_barang}</td>
-                                                              <td class="px-3 py-2">${b.nama_barang}</td>
-                                                              <td class="px-3 py-2">${b.stok_barang}</td>
-                                                              <td class="px-3 py-2">
-                                                                <button 
-                                                                  class="ambil px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:opacity-90" 
-                                                                  data-kode="${b.kode_barang}" 
-                                                                  data-nama="${b.nama_barang}">
-                                                                  Ambil
-                                                                </button>
-                                                              </td>
-                                                            </tr>`;
+                                                                <tr class="border-b hover:bg-gray-50 transition">
+                                                                  <td class="px-3 py-2">${b.kode_barang}</td>
+                                                                  <td class="px-3 py-2">${b.nama_barang}</td>
+                                                                  <td class="px-3 py-2">${b.stok_barang}</td>
+                                                                  <td class="px-3 py-2">
+                                                                    <button 
+                                                                      class="ambil px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:opacity-90" 
+                                                                      data-kode="${b.kode_barang}" 
+                                                                      data-nama="${b.nama_barang}">
+                                                                      Ambil
+                                                                    </button>
+                                                                  </td>
+                                                                </tr>`;
                         });
                         tabelGudang.innerHTML = rows + '</tbody></table>';
                     } else {
@@ -272,7 +290,7 @@
                 const json = await res.json();
                 alert(json.message);
                 modal.classList.add('hidden');
-                loadGudang();
+                location.reload();
             });
         });
     </script>
@@ -380,13 +398,13 @@
     </script>
 @endpush
 @push('scripts')
-<script>
-    document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('toggle-dmg')) {
-            const kode = e.target.dataset.kode;
-            const row = document.getElementById('dmg-' + kode);
-            if (row) row.classList.toggle('hidden');
-        }
-    });
-</script>
+    <script>
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('toggle-dmg')) {
+                const kode = e.target.dataset.kode;
+                const row = document.getElementById('dmg-' + kode);
+                if (row) row.classList.toggle('hidden');
+            }
+        });
+    </script>
 @endpush
