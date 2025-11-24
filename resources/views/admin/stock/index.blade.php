@@ -49,13 +49,8 @@
                                             class="{{ $item->damaged_total > 0 ? 'text-red-600 font-semibold' : 'text-gray-600' }}">
                                             {{ $item->damaged_total }}
                                         </span>
-                                        {{-- toggle riwayat jika ada --}}
-                                        @if(($item->damage_logs ?? collect())->count())
-                                            <button class="ml-2 text-xs underline text-indigo-600 toggle-dmg"
-                                                data-kode="{{ $item->kode_barang }}">
-                                                Riwayat
-                                            </button>
-                                        @endif
+
+                                       
                                     </td>
 
                                     <td class="px-3 py-2">
@@ -77,7 +72,7 @@
                                             Atur Harga
                                         </button>
 
-                                        {{-- Barcode: kirim URL jadi data-attr, biar tidak bingung id/kode --}}
+                                       
                                         <button
                                             class="btn-barcode px-3 py-1.5 bg-gray-100 text-gray-800 text-xs rounded-md hover:bg-gray-200"
                                             data-preview="{{ route('admin.products.barcode.preview', $item) }}"
@@ -86,10 +81,14 @@
                                             Barcode
                                         </button>
 
-                                        <a href="{{ route('admin.products.barcode.download', $item) }}"
-                                            class="px-3 py-1.5 bg-white border text-xs rounded-md hover:bg-gray-50">
-                                            Download
-                                        </a>
+                                      
+                                       
+                                            <button class="ml-2 text-xs underline text-indigo-600 toggle-dmg"
+                                                data-kode="{{ $item->kode_barang }}" data-nama="{{ $item->nama_barang }}"
+                                                data-logs='@json($item->damage_logs)'>
+                                                Lihat Riwayat Kerusakan
+                                            </button>
+                                      
                                     </td>
                                 </tr>
                                 @if(($item->damage_logs ?? collect())->count())
@@ -122,7 +121,28 @@
             </div>
         </div>
     </div>
+    {{-- Modal Riwayat Kerusakan --}}
+    <div id="modalDamage" class="hidden fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div class="px-6 py-4 border-b flex items-center justify-between">
+                <h3 id="damageTitle" class="text-lg font-semibold">
+                    Riwayat Kerusakan
+                </h3>
+                <button type="button" class="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                    data-close-damage-modal>&times;</button>
+            </div>
 
+            <div id="damageBody" class="px-6 py-4 overflow-y-auto text-sm space-y-2">
+                {{-- konten akan diisi via JS --}}
+            </div>
+
+            <div class="px-6 py-3 border-t text-right">
+                <button type="button" class="px-3 py-1.5 bg-gray-200 rounded-md hover:bg-gray-300" data-close-damage-modal>
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
 
     {{-- Modal ambil stok --}}
     <div id="modalAmbil" class="hidden fixed inset-0 bg-black/30 flex items-center justify-center z-50">
@@ -192,7 +212,8 @@
             </div>
 
             <div class="mt-4 flex justify-end">
-                <a id="bcDownload" href="#" class="px-4 py-2 rounded-md bg-indigo-600 text-white hover:opacity-90">
+                <a id="bcDownload" href="{{ route('admin.products.barcode.download', $item) }}"
+                    class="px-4 py-2 rounded-md bg-indigo-600 text-white hover:opacity-90">
                     Download PNG
                 </a>
             </div>
@@ -209,10 +230,12 @@
             const modal = document.getElementById('modalAmbil');
             const kodeInput = document.getElementById('kodeBarang');
             const kodeLabel = document.getElementById('modalKode');
+            const qtyInput = document.querySelector('#formAmbil input[name="qty"]');
             const refreshGudang = document.getElementById('refreshGudang');
             const tabelGudang = document.getElementById('tabelGudang');
             const tutupModal = document.getElementById('tutupModal');
             const formAmbil = document.getElementById('formAmbil');
+
 
             // --- Fetch data gudang ---
             const loadGudang = async () => {
@@ -222,32 +245,33 @@
                     const json = await res.json();
                     if (json.status === 'success') {
                         let rows = `
-                                                              <table class="min-w-full border-collapse">
-                                                                <thead>
-                                                                  <tr class="bg-gray-100 text-left text-gray-600 text-xs uppercase tracking-wide">
-                                                                    <th class="px-3 py-2">Kode</th>
-                                                                    <th class="px-3 py-2">Nama</th>
-                                                                    <th class="px-3 py-2">Stok</th>
-                                                                    <th class="px-3 py-2">Aksi</th>
-                                                                  </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                            `;
+                                                                                      <table class="min-w-full border-collapse">
+                                                                                        <thead>
+                                                                                          <tr class="bg-gray-100 text-left text-gray-600 text-xs uppercase tracking-wide">
+                                                                                            <th class="px-3 py-2">Kode</th>
+                                                                                            <th class="px-3 py-2">Nama</th>
+                                                                                            <th class="px-3 py-2">Stok</th>
+                                                                                            <th class="px-3 py-2">Aksi</th>
+                                                                                          </tr>
+                                                                                        </thead>
+                                                                                        <tbody>
+                                                                                    `;
                         json.data.forEach(b => {
                             rows += `
-                                                                <tr class="border-b hover:bg-gray-50 transition">
-                                                                  <td class="px-3 py-2">${b.kode_barang}</td>
-                                                                  <td class="px-3 py-2">${b.nama_barang}</td>
-                                                                  <td class="px-3 py-2">${b.stok_barang}</td>
-                                                                  <td class="px-3 py-2">
-                                                                    <button 
-                                                                      class="ambil px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:opacity-90" 
-                                                                      data-kode="${b.kode_barang}" 
-                                                                      data-nama="${b.nama_barang}">
-                                                                      Ambil
-                                                                    </button>
-                                                                  </td>
-                                                                </tr>`;
+                                <tr class="border-b hover:bg-gray-50 transition">
+                                  <td class="px-3 py-2">${b.kode_barang}</td>
+                                  <td class="px-3 py-2">${b.nama_barang}</td>
+                                  <td class="px-3 py-2">${b.stok_barang}</td>
+                                  <td class="px-3 py-2">
+                                    <button 
+                                      class="ambil px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:opacity-90" 
+                                      data-kode="${b.kode_barang}" 
+                                      data-nama="${b.nama_barang}"
+                                      data-stok="${b.stok_barang}">
+                                      Ambil
+                                    </button>
+                                  </td>
+                                </tr>`;
                         });
                         tabelGudang.innerHTML = rows + '</tbody></table>';
                     } else {
@@ -266,8 +290,21 @@
                 if (e.target.classList.contains('ambil')) {
                     const kode = e.target.dataset.kode;
                     const nama = e.target.dataset.nama;
+                    const stok = parseInt(e.target.dataset.stok || '0', 10);
+
+                    // ⛔ kalau stok 0, jangan buka modal
+                    if (stok <= 0) {
+                        alert(`Stok gudang untuk ${nama} (${kode}) adalah 0. Tidak bisa ambil stok.`);
+                        return;
+                    }
+
                     kodeInput.value = kode;
-                    kodeLabel.textContent = `Ambil stok untuk ${nama} (${kode})`;
+                    kodeLabel.textContent = `Ambil stok untuk ${nama} (${kode}) — Stok gudang: ${stok}`;
+
+                    qtyInput.value = '';
+                    qtyInput.min = 1;
+                    qtyInput.max = stok;   // aman karena stok pasti ≥ 1 di sini
+
                     modal.classList.remove('hidden');
                 }
             });
@@ -278,6 +315,13 @@
             // --- Submit form ambil stok ---
             formAmbil.addEventListener('submit', async e => {
                 e.preventDefault();
+                const stok = parseInt(qtyInput.max || '0', 10);
+                const qty = parseInt(qtyInput.value || '0', 10);
+
+                if (stok && qty > stok) {
+                    alert(`Jumlah yang diambil tidak boleh lebih dari stok gudang (${stok}).`);
+                    return;
+                }
                 const data = Object.fromEntries(new FormData(formAmbil));
                 const res = await fetch('{{ route('admin.stock.ambil') }}', {
                     method: 'POST',
@@ -399,12 +443,84 @@
 @endpush
 @push('scripts')
     <script>
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('toggle-dmg')) {
-                const kode = e.target.dataset.kode;
-                const row = document.getElementById('dmg-' + kode);
-                if (row) row.classList.toggle('hidden');
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('modalDamage');
+            const titleEl = document.getElementById('damageTitle');
+            const bodyEl = document.getElementById('damageBody');
+
+            function closeModal() {
+                if (modal) modal.classList.add('hidden');
             }
+
+            // Tombol tutup (header & footer)
+            document.querySelectorAll('[data-close-damage-modal]').forEach(btn => {
+                btn.addEventListener('click', closeModal);
+            });
+
+            // Klik di overlay (background) juga nutup modal
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeModal();
+                });
+            }
+
+            // Klik tombol Download di kolom Rusak
+            document.addEventListener('click', (e) => {
+                const btn = e.target.closest('.toggle-dmg');
+                if (!btn) return;
+                if (!modal || !titleEl || !bodyEl) return;
+
+                const kode = btn.dataset.kode || '';
+                const nama = btn.dataset.nama || '';
+                let logs = [];
+
+                try {
+                    logs = JSON.parse(btn.dataset.logs || '[]');
+                } catch (err) {
+                    logs = [];
+                }
+
+                titleEl.textContent = `Riwayat Kerusakan — ${nama} (${kode})`;
+
+                if (!logs.length) {
+                    bodyEl.innerHTML =
+                        '<p class="text-gray-500 text-sm">Belum ada riwayat kerusakan.</p>';
+                } else {
+                    bodyEl.innerHTML = logs.map((log) => {
+                        const qty = log.qty ?? '-';
+                        const mode = log.mode && log.mode !== '-'
+                            ? (log.mode === 'exchange' ? 'Tukar' : 'Refund Uang')
+                            : null;
+                        const sale = log.sale_code || '';
+                        const at = log.at || '';
+                        const notes = log.notes || '';
+
+                        return `
+                                <div class="border rounded-lg px-4 py-2 bg-gray-50">
+                                    <div class="flex justify-between mb-1">
+                                        <div>
+                                            <span class="font-semibold">Qty ${qty}</span>
+                                            ${mode ? `<span class="text-gray-500"> • ${mode}</span>` : ''}
+                                        </div>
+                                        ${at ? `<div class="text-xs text-gray-500">${at}</div>` : ''}
+                                    </div>
+                                    ${sale
+                                ? `<div class="text-xs text-gray-600">
+                                               Transaksi: <span class="font-mono">${sale}</span>
+                                           </div>`
+                                : ''
+                            }
+                                    ${notes
+                                ? `<div class="mt-1 text-xs text-gray-600 italic">${notes}</div>`
+                                : ''
+                            }
+                                </div>
+                            `;
+                    }).join('');
+                }
+
+                modal.classList.remove('hidden');
+            });
         });
     </script>
 @endpush

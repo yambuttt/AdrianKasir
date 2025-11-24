@@ -23,6 +23,36 @@ class StockTransferController extends Controller
             'qty' => 'required|integer|min:1',
         ]);
 
+
+        $gudangRes = $this->warehouse->getAllBarang();
+
+        if (!$gudangRes->successful() || $gudangRes->json('status') !== 'success') {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Tidak dapat memeriksa stok gudang. Coba refresh data gudang dulu.',
+            ], 422);
+        }
+
+        $barang = collect($gudangRes->json('data') ?? [])
+            ->firstWhere('kode_barang', $data['kode_barang']);
+
+        if (!$barang) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Barang tidak ditemukan di gudang.',
+            ], 422);
+        }
+
+        $stokGudang = (int) ($barang['stok_barang'] ?? 0);
+
+        if ($data['qty'] > $stokGudang) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => "Stok gudang tidak mencukupi. Stok tersedia {$stokGudang}, diminta {$data['qty']}.",
+            ], 422);
+        }
+
+  
         return DB::transaction(function () use ($data, $request) {
             $transfer = StockTransfer::create([
                 'transfer_uid' => Str::uuid(),
@@ -41,7 +71,7 @@ class StockTransferController extends Controller
                 $transfer->warehouse_response = $res->json();
                 $transfer->status = 'committed';
 
-                $barang = $res->json('data'); // ambil data barang dari gudang
+                $barang = $res->json('data');
 
                 Product::updateOrCreate(
                     ['kode_barang' => $barang['kode_barang']],
@@ -58,6 +88,7 @@ class StockTransferController extends Controller
                 $transfer->status = 'failed';
                 $transfer->warehouse_response = $res->json();
             }
+
             $transfer->save();
 
             return response()->json([
@@ -65,24 +96,23 @@ class StockTransferController extends Controller
                 'message' => $transfer->status === 'committed'
                     ? 'Berhasil ambil stok dari gudang'
                     : 'Gagal ambil stok dari gudang',
-                'data' => $transfer
+                'data' => $transfer,
             ]);
         });
     }
 
     public function index()
     {
-        // Ambil semua produk kasir
+
         $produk = \App\Models\Product::orderBy('nama_barang')->get();
 
-        // Hitung total kerusakan per kode_barang
+
         $damageTotals = \App\Models\ProductDamageLog::query()
             ->selectRaw('kode_barang, SUM(qty) AS damaged_total')
             ->groupBy('kode_barang')
             ->pluck('damaged_total', 'kode_barang');
 
-        // Ambil transaksi terkait kerusakan per produk (10 terakhir untuk semua produk)
-        // Join ke sale_returns (punya mode refund/exchange) dan sales (punya code & waktu)
+
         $rows = \DB::table('product_damage_logs AS d')
             ->leftJoin('sale_returns AS r', 'r.id', '=', 'd.sale_return_id')
             ->leftJoin('sales AS s', 's.id', '=', 'r.sale_id')
@@ -92,7 +122,7 @@ class StockTransferController extends Controller
             ->get()
             ->groupBy('kode_barang');
 
-        // Tempelkan data ke koleksi produk agar mudah dirender di blade
+
         $produk->transform(function ($p) use ($damageTotals, $rows) {
             $p->damaged_total = (int) ($damageTotals[$p->kode_barang] ?? 0);
             $list = collect($rows[$p->kode_barang] ?? [])->map(function ($r) {
@@ -104,7 +134,7 @@ class StockTransferController extends Controller
                     'at' => $r->at ? \Carbon\Carbon::parse($r->at)->format('d M Y H:i') : null,
                 ];
             });
-            // batasi ditampilkan 5 item per produk (biar ringkas)
+
             $p->damage_logs = $list->take(5)->values();
             return $p;
         });
